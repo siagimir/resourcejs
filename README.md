@@ -85,7 +85,7 @@ Resource(app, route, name, model)
 
 Properties
 ----------------
-There is environment variable ```MAX_COUNT_LIMIT``` used when executing a count query. It represents a threshold for deciding whether to return a real number of records or the given limit. 
+There is environment variable ```MAX_COUNT_LIMIT``` used when executing a count query. It represents a threshold for deciding whether to return a real number of records or the given limit. If we reach the threshold, response header ```x-max-count-limit-reached``` will be set to ```true```. The header's default value is ```false```.  
 
 Only exposing certain methods
 -------------------
