@@ -519,7 +519,7 @@ class Resource {
     return finalQuery;
   }
 
-  countQuery(query, pipeline) {
+  countQuery(query, pipeline, populate) {
     // We cannot use aggregation if mongoose special options are used... like populate.
     if (!utils.isEmpty(query._mongooseOptions) || !pipeline) {
       return query;
@@ -546,9 +546,12 @@ class Resource {
           let maxCountLimitReached = false;
 
           const itemsCount = items.length ? items[0].count : 0;
-          if (itemsCount > MAX_COUNT_LIMIT) {
+          if (itemsCount > MAX_COUNT_LIMIT && populate === "") {
             maxCountLimitReached = true;
             return cb(null, MAX_COUNT_LIMIT, maxCountLimitReached);
+          }
+          else if ( populate !== "" ) {
+            return cb(null, itemsCount, maxCountLimitReached);
           }
           else {
 
@@ -627,8 +630,10 @@ class Resource {
       const countQuery = req.countQuery || req.modelQuery || req.model || this.model;
       const query = req.modelQuery || req.model || this.model;
 
+      const populate = Resource.getParamQuery(req, 'populate');
+      
       // First get the total count.
-      this.countQuery(countQuery.find(findQuery), countQuery.pipeline).countDocuments((err, count, maxCountLimitReached) => {
+      this.countQuery(countQuery.find(findQuery), countQuery.pipeline, populate).countDocuments((err, count, maxCountLimitReached) => {
         if (err) {
           debug.index(err);
           return Resource.setResponse(res, { status: 400, error: err }, next);
@@ -673,7 +678,7 @@ class Resource {
           query.pipeline.unshift({ $limit: (nestedMatchCount > 0 ? FORMIO_AGGREGATE_MIN_LIMIT : reqQuery.limit) });
 
           // no nested filter => skip in pipeline
-          if ( nestedMatchCount <= 0 ) {
+          if ( nestedMatchCount <= 0 && populate === "" ) {
             query.pipeline.unshift({ $skip: reqQuery.skip });
             reqQuery.skip = 0; // reset skip
           }
@@ -699,7 +704,6 @@ class Resource {
           .sort(Resource.getParamQuery(req, 'sort'));
 
         // Only call populate if they provide a populate query.
-        const populate = Resource.getParamQuery(req, 'populate');
         if (populate) {
           debug.index(`Populate: ${populate}`);
           queryExec.populate(populate);
