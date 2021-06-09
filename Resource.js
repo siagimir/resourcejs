@@ -543,10 +543,12 @@ class Resource {
 
           const maxCountLimit = process.env.MAX_COUNT_LIMIT;
           const MAX_COUNT_LIMIT = maxCountLimit !== undefined ? maxCountLimit : 5000;
+          let maxCountLimitReached = false;
 
           const itemsCount = items.length ? items[0].count : 0;
           if (itemsCount > MAX_COUNT_LIMIT) {
-            return cb(null, MAX_COUNT_LIMIT);
+            maxCountLimitReached = true;
+            return cb(null, MAX_COUNT_LIMIT, maxCountLimitReached);
           }
           else {
 
@@ -565,7 +567,7 @@ class Resource {
               if (errReal) {
                 return cb(errReal);
               }
-              return cb(null, itemsReal.length ? itemsReal[0].count : 0);
+              return cb(null, itemsReal.length ? itemsReal[0].count : 0, maxCountLimitReached);
             });
 
           }
@@ -626,7 +628,7 @@ class Resource {
       const query = req.modelQuery || req.model || this.model;
 
       // First get the total count.
-      this.countQuery(countQuery.find(findQuery), countQuery.pipeline).countDocuments((err, count) => {
+      this.countQuery(countQuery.find(findQuery), countQuery.pipeline).countDocuments((err, count, maxCountLimitReached) => {
         if (err) {
           debug.index(err);
           return Resource.setResponse(res, { status: 400, error: err }, next);
@@ -646,6 +648,8 @@ class Resource {
           req.headers['range-unit'] = 'items';
           req.headers.range = `${reqQuery.skip}-${reqQuery.skip + (reqQuery.limit - 1)}`;
         }
+
+        res.setHeader('x-max-count-limit-reached', maxCountLimitReached !== undefined ? maxCountLimitReached : false);
 
         // Get the page range.
         const pageRange = paginate(req, res, count, reqQuery.limit) || {
